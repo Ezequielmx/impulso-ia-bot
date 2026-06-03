@@ -3,21 +3,28 @@ const repoTools = require('../tools/repoTools');
 const openai = require('../services/openai.service');
 const wassenger = require('../services/wassenger.service');
 
+function getPayloadData(payload) {
+  return payload?.data || payload;
+}
+
 function extractText(payload) {
-  return payload?.text || payload?.message || payload?.body || '';
+  const data = getPayloadData(payload);
+  return data?.body || data?.text || data?.message || '';
 }
 
 function extractSender(payload) {
-  return payload?.from || payload?.senderName || payload?.author || payload?.number || 'desconocido';
+  const data = getPayloadData(payload);
+  return data?.from || data?.senderName || data?.author || data?.number || 'desconocido';
 }
 
 function isBotMentioned(payload) {
   // Detectar si el bot fue mencionado (arrobado) de cualquier forma
+  const data = getPayloadData(payload);
   const textRaw = extractText(payload);
 
   const mentionCandidates = [
-    ...(payload?.mentions || []),
-    ...(payload?.mentioned || []),
+    ...(data?.mentions || []),
+    ...(data?.mentioned || []),
   ];
 
   if (Array.isArray(mentionCandidates) && mentionCandidates.length > 0) {
@@ -29,11 +36,11 @@ function isBotMentioned(payload) {
     if (hasBotMention) return true;
   }
 
-  if (payload?.mentionedIds && Array.isArray(payload.mentionedIds) && payload.mentionedIds.includes(config.WASSENGER_DEVICE_ID)) {
+  if (data?.mentionedIds && Array.isArray(data.mentionedIds) && data.mentionedIds.includes(config.WASSENGER_DEVICE_ID)) {
     return true;
   }
 
-  if (payload?.mentionedJids && Array.isArray(payload.mentionedJids) && payload.mentionedJids.includes(config.WASSENGER_DEVICE_ID)) {
+  if (data?.mentionedJids && Array.isArray(data.mentionedJids) && data.mentionedJids.includes(config.WASSENGER_DEVICE_ID)) {
     return true;
   }
 
@@ -54,7 +61,8 @@ function normalizeGroupId(rawId) {
 }
 
 async function handleWassengerWebhook(payload) {
-  const groupId = payload?.group?.id || payload?.group_id || payload?.chatId;
+  const data = getPayloadData(payload);
+  const groupId = data?.chat?.id || data?.from || payload?.group?.id || payload?.group_id || payload?.chatId;
   const normalizedGroupId = normalizeGroupId(groupId);
   const normalizedAllowed = normalizeGroupId(config.AUTHORIZED_GROUP_ID);
   const textRaw = extractText(payload);
