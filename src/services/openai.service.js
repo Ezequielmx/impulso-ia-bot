@@ -77,10 +77,10 @@ async function callWithToolLoop({ userInput, tools = {}, sender = 'desconocido' 
       throw err;
     }
 
+    console.log(`[openai] ronda ${i + 1} — tool_calls: ${assistantMsg.tool_calls?.length || 0}, content: ${assistantMsg.content?.slice(0, 80) || '(vacío)'}`);
     messages.push(assistantMsg);
 
     if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-      // Final text response
       return assistantMsg.content || '';
     }
 
@@ -92,15 +92,20 @@ async function callWithToolLoop({ userInput, tools = {}, sender = 'desconocido' 
         args = JSON.parse(tc.function.arguments || '{}');
       } catch (_) {}
 
+      console.log(`[openai] tool call: ${fnName}`, args);
+
       let result;
       if (tools[fnName]) {
         try {
           result = await tools[fnName].fn(args);
+          console.log(`[openai] tool result: ${fnName} →`, JSON.stringify(result).slice(0, 200));
         } catch (err) {
           result = { error: err?.message || 'error al ejecutar la herramienta' };
+          console.warn(`[openai] tool error: ${fnName} →`, err?.message);
         }
       } else {
         result = { error: `herramienta desconocida: ${fnName}` };
+        console.warn(`[openai] tool desconocida: ${fnName}`);
       }
 
       messages.push({
@@ -111,6 +116,7 @@ async function callWithToolLoop({ userInput, tools = {}, sender = 'desconocido' 
     }
   }
 
+  console.warn('[openai] loop agotado sin respuesta final');
   return 'No pude obtener una respuesta. Intentá de nuevo.';
 }
 
