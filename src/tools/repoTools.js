@@ -3,28 +3,36 @@ const pathGuard = require('../utils/pathGuard');
 const { slugify } = require('../utils/text');
 
 async function listar_archivos(path) {
+  if (!path) {
+    // Sin path: devolver lista de carpetas permitidas
+    return pathGuard.allowedPaths().map(p => ({ name: p, type: 'dir', path: p }));
+  }
   if (!pathGuard.isPathAllowed(path)) throw new Error('ruta no permitida');
   return github.listDir(path);
 }
 
 async function buscar_en_repo(query) {
-  // Simple approach: list allowed folders and search client-side
   const allowed = pathGuard.allowedPaths();
   const results = [];
-  for (const p of allowed) {
+
+  async function searchDir(dirPath) {
     try {
-      const items = await github.listDir(p);
+      const items = await github.listDir(dirPath);
       for (const it of items) {
         if (it.type === 'file') {
           const content = await github.readFile(it.path);
           if (content && content.toLowerCase().includes(query.toLowerCase())) {
             results.push({ path: it.path, snippet: content.slice(0, 300) });
           }
+        } else if (it.type === 'dir') {
+          await searchDir(it.path);
         }
       }
-    } catch (e) {
-      // ignore per-folder errors
-    }
+    } catch (_) {}
+  }
+
+  for (const p of allowed) {
+    await searchDir(p);
   }
   return results;
 }

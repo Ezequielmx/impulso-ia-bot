@@ -18,39 +18,28 @@ function extractSender(payload) {
 }
 
 function isBotMentioned(payload) {
-  // Detectar si el bot fue mencionado (arrobado) de cualquier forma
   const data = getPayloadData(payload);
   const textRaw = extractText(payload);
 
+  // Chequeo por texto primero: debe contener el trigger exacto
+  if (textRaw?.includes(config.BOT_TRIGGER)) return true;
+
+  // Chequeo por mentions estructuradas del payload
   const mentionCandidates = [
     ...(data?.mentions || []),
     ...(data?.mentioned || []),
   ];
 
-  if (Array.isArray(mentionCandidates) && mentionCandidates.length > 0) {
+  if (mentionCandidates.length > 0) {
     const hasBotMention = mentionCandidates.some(m => {
       const id = String(m?.id || m?.jid || m?.user || m?.phone || '');
-      const name = String(m?.name || m?.displayName || m?.pushname || '');
-      return id === config.WASSENGER_DEVICE_ID || id.includes('bot') || name.toLowerCase().includes('bot');
+      return id === config.WASSENGER_DEVICE_ID;
     });
     if (hasBotMention) return true;
   }
 
-  if (data?.mentionedIds && Array.isArray(data.mentionedIds) && data.mentionedIds.includes(config.WASSENGER_DEVICE_ID)) {
-    return true;
-  }
-
-  if (data?.mentionedJids && Array.isArray(data.mentionedJids) && data.mentionedJids.includes(config.WASSENGER_DEVICE_ID)) {
-    return true;
-  }
-
-  if (textRaw?.includes(config.BOT_TRIGGER)) {
-    return true;
-  }
-
-  if (textRaw?.trim().startsWith('@')) {
-    return true;
-  }
+  if (data?.mentionedIds?.includes(config.WASSENGER_DEVICE_ID)) return true;
+  if (data?.mentionedJids?.includes(config.WASSENGER_DEVICE_ID)) return true;
 
   return false;
 }
@@ -87,8 +76,8 @@ async function handleWassengerWebhook(payload) {
     return { ok: true, reason: 'no_trigger' };
   }
 
-  // Limpiar el texto de menciones (@bot, @nombre, etc)
-  const text = textRaw.replace(/^@[\w\s]*/i, '').trim();
+  // Sacar todas las @menciones del texto preservando el resto del mensaje
+  const text = textRaw.replace(/@\S+/g, '').replace(/\s+/g, ' ').trim();
 
   // Shortcut: agregar nota commands
   const lower = text.toLowerCase();
