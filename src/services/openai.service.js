@@ -8,10 +8,11 @@ Usá las herramientas disponibles para buscar información en el repositorio cua
 Respondé de forma concisa y natural, sin formato markdown complejo.`;
 
 async function chatCompletion(messages, toolDefs = []) {
+  const isNewModel = /^(gpt-5|o\d)/i.test(config.OPENAI_MODEL);
   const body = {
     model: config.OPENAI_MODEL,
     messages,
-    max_tokens: 800,
+    ...(isNewModel ? { max_completion_tokens: 800 } : { max_tokens: 800 }),
     ...(toolDefs.length > 0 ? { tools: toolDefs, tool_choice: 'auto' } : {}),
   };
 
