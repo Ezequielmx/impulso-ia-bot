@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arquitectura — impulso-ia-bot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-bottom: 48px;
+    }
+
+    /* ── Layout principal ── */
+    .diagram {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* ── Secciones de capa ── */
+    .layer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      position: relative;
+    }
+
+    /* ── Cajas genéricas ── */
+    .box {
+      border-radius: 12px;
+      padding: 16px 20px;
+      border: 1px solid;
+      position: relative;
+      min-width: 140px;
+      text-align: center;
+    }
+
+    .box .label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      opacity: 0.6;
+    }
+
+    .box .name {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .box .detail {
+      font-size: 0.72rem;
+      margin-top: 6px;
+      opacity: 0.65;
+      line-height: 1.5;
+    }
+
+    /* Colores por tipo */
+    .box.external  { background: #1e293b; border-color: #334155; }
+    .box.infra     { background: #1a2535; border-color: #2563eb; color: #93c5fd; }
+    .box.handler   { background: #1a1f2e; border-color: #7c3aed; color: #c4b5fd; }
+    .box.service   { background: #1c2030; border-color: #0891b2; color: #67e8f9; }
+    .box.tool      { background: #1a2520; border-color: #059669; color: #6ee7b7; }
+    .box.util      { background: #1e1a2e; border-color: #7c3aed44; color: #a78bfa; }
+    .box.openai    { background: #1a2020; border-color: #10b981; color: #34d399; }
+    .box.github    { background: #1a1e2e; border-color: #6366f1; color: #a5b4fc; }
+    .box.env       { background: #1e1a14; border-color: #d97706; color: #fcd34d; }
+
+    /* ── Flechas SVG ── */
+    .arrows {
+      display: flex;
+      justify-content: center;
+      overflow: visible;
+    }
+
+    /* ── Separadores de flecha vertical ── */
+    .arrow-v {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      margin: 6px 0;
+    }
+
+    .arrow-v .line {
+      width: 2px;
+      height: 28px;
+      background: #334155;
+    }
+
+    .arrow-v .tip {
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #334155;
+    }
+
+    .arrow-v .label-a {
+      font-size: 0.65rem;
+      color: #64748b;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    /* ── Row de cajas ── */
+    .row {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Conector horizontal ── */
+    .h-arrow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      color: #475569;
+      font-size: 0.7rem;
+      text-align: center;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 60px;
+    }
+
+    .h-arrow .h-line {
+      height: 2px;
+      width: 40px;
+      background: #334155;
+    }
+
+    .h-arrow .h-tip {
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 7px solid #334155;
+    }
+
+    .h-arrow-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .h-arrow-wrap .alabel {
+      font-size: 0.62rem;
+      color: #475569;
+      white-space: nowrap;
+    }
+
+    /* ── Bloque de tools ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 0;
+    }
+
+    .fn-item {
+      background: #0f1a14;
+      border: 1px solid #05996044;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .fn-item .fn-name {
+      font-family: 'Consolas', monospace;
+      font-size: 0.78rem;
+      color: #34d399;
+      font-weight: 600;
+    }
+
+    .fn-item .fn-desc {
+      font-size: 0.68rem;
+      color: #64748b;
+      margin-top: 3px;
+    }
+
+    /* ── Handler steps ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+      text-align: left;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+    }
+
+    .step .num {
+      background: #7c3aed33;
+      color: #a78bfa;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ── Loop steps ── */
+    .loop-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 8px;
+      text-align: left;
+    }
+
+    .loop-step {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      padding: 5px 8px;
+      background: #10b98111;
+      border-left: 2px solid #10b98166;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* ── Env grid ── */
+    .env-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    .env-chip {
+      font-family: 'Consolas', monospace;
+      font-size: 0.68rem;
+      background: #d9770611;
+      border: 1px solid #d9770633;
+      color: #fcd34d;
+      border-radius: 6px;
+      padding: 3px 8px;
+    }
+
+    /* Sección titulada */
+    .section-title {
+      text-align: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #475569;
+      margin: 32px 0 16px;
+      position: relative;
+    }
+
+    .section-title::before,
+    .section-title::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 28%;
+      height: 1px;
+      background: #1e293b;
+    }
+
+    .section-title::before { left: 0; }
+    .section-title::after { right: 0; }
+
+    /* wide box */
+    .box.wide { min-width: 260px; max-width: 340px; }
+    .box.wider { min-width: 320px; max-width: 400px; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.6rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      margin-top: 4px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .badge.green  { background: #05996033; color: #34d399; }
+    .badge.blue   { background: #0891b233; color: #67e8f9; }
+    .badge.purple { background: #7c3aed33; color: #c4b5fd; }
+    .badge.yellow { background: #d9770633; color: #fcd34d; }
+  </style>
+</head>
+<body>
+
+<h1>impulso-ia-bot</h1>
+<p class="subtitle">Arquitectura, infraestructura y funciones · 2025</p>
+
+<div class="diagram">
+
+  <!-- ── CAPA 1: EXTERNOS ── -->
+  <p class="section-title">Externos</p>
+  <div class="row">
+
+    <div class="box external wide">
+      <div class="label">Usuario</div>
+      <div class="name">WhatsApp Group</div>
+      <div class="detail">Escribe en el grupo<br>Menciona al bot con @</div>
+    </div>
+
+    <div class="box external wide">
+      <div class="label">Gateway</div>
+      <div class="name">Wassenger</div>
+      <div class="detail">
+        Recibe mensajes de WhatsApp<br>
+        Dispara webhook → servidor<br>
+        Envía respuestas de vuelta
+      </div>
+    </div>
+
+  </div>
+
+  <!-- flecha hacia abajo -->
+  <div style="display:flex;justify-content:center;gap:120px;margin:8px 0">
+    <div class="arrow-v">
+      <div style="font-size:0.62rem;color:#475569;margin-bottom:4px">mensaje</div>
+      <div class="line"></div><div class="tip"></div>
+    </div>
+    <div class="arrow-v">
+      <div style="font-size:0.62rem;color:#475569;margin-bottom:4px">POST webhook</div>
+      <div class="line"></div><div class="tip"></div>
+    </div>
+  </div>
+
+  <!-- ── CAPA 2: INFRA ── -->
+  <p class="section-title">Infraestructura</p>
+  <div class="row">
+
+    <div class="box infra wide">
+      <div class="label">Servidor</div>
+      <div class="name">Railway · Node.js</div>
+      <div class="detail">
+        Express · PORT 3000<br>
+        <code style="font-size:0.7rem">GET  /health</code><br>
+        <code style="font-size:0.7rem">POST /webhook/wassenger</code>
+      </div>
+      <div style="margin-top:8px">
+        <span class="badge blue">src/index.js</span>
+        <span class="badge blue">src/config.js</span>
+      </div>
+    </div>
+
+    <div class="box github wide">
+      <div class="label">Almacenamiento</div>
+      <div class="name">GitHub Repo</div>
+      <div class="detail">
+        Repo privado: <strong>impulso-ia</strong><br>
+        Branch: main<br>
+        Notas en <code style="font-size:0.7rem">notas/bot/*.md</code>
+      </div>
+      <div style="margin-top:8px">
+        <span class="badge purple">github.service.js</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display:flex;justify-content:center;margin:8px 0">
+    <div class="arrow-v">
+      <div style="font-size:0.62rem;color:#475569;margin-bottom:4px">handleWassengerWebhook()</div>
+      <div class="line"></div><div class="tip"></div>
+    </div>
+  </div>
+
+  <!-- ── CAPA 3: HANDLER ── -->
+  <p class="section-title">Lógica central</p>
+  <div class="row">
+    <div class="box handler wider">
+      <div class="label">Handler</div>
+      <div class="name">messageHandler.js</div>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><span><strong>getPayloadData()</strong> — normaliza payload.data vs raíz</span></div>
+        <div class="step"><div class="num">2</div><span><strong>extractText()</strong> — body / text / message</span></div>
+        <div class="step"><div class="num">3</div><span><strong>extractSender()</strong> — from / author / number</span></div>
+        <div class="step"><div class="num">4</div><span><strong>normalizeGroupId()</strong> — solo dígitos</span></div>
+        <div class="step"><div class="num">5</div><span><strong>isBotMentioned()</strong> — mentions / mentionedIds / @trigger</span></div>
+        <div class="step"><div class="num">6</div><span>Guard: grupo no autorizado → ignorar</span></div>
+        <div class="step"><div class="num">7</div><span>Guard: sin mención → ignorar</span></div>
+        <div class="step"><div class="num">8</div><span>Routing: <strong>agreg*</strong> → nota directa / resto → OpenAI</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:center;gap:180px;margin:8px 0">
+    <div class="arrow-v">
+      <div style="font-size:0.62rem;color:#475569;margin-bottom:4px">agregar_nota()</div>
+      <div class="line"></div><div class="tip"></div>
+    </div>
+    <div class="arrow-v">
+      <div style="font-size:0.62rem;color:#475569;margin-bottom:4px">callWithToolLoop()</div>
+      <div class="line"></div><div class="tip"></div>
+    </div>
+  </div>
+
+  <!-- ── CAPA 4: SERVICIOS ── -->
+  <p class="section-title">Servicios</p>
+  <div class="row">
+
+    <div class="box tool wide">
+      <div class="label">Tools · repoTools.js</div>
+      <div class="name">Operaciones GitHub</div>
+      <div class="tools-grid" style="margin-top:10px">
+        <div class="fn-item">
+          <div class="fn-name">listar_archivos()</div>
+          <div class="fn-desc">Lista contenido de una ruta permitida</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-name">buscar_en_repo()</div>
+          <div class="fn-desc">Busca texto en archivos del repo</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-name">leer_archivo()</div>
+          <div class="fn-desc">Lee contenido completo de un archivo</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-name">agregar_nota()</div>
+          <div class="fn-desc">Crea .md en notas/bot/ con frontmatter</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+        <span class="badge green">pathGuard.js</span>
+        <span class="badge green">text.js · slugify()</span>
+      </div>
+    </div>
+
+    <div class="box openai wide">
+      <div class="label">Servicio · openai.service.js</div>
+      <div class="name">OpenAI Function Calling</div>
+      <div class="loop-steps">
+        <div class="loop-step">1. Convierte tools → definiciones OpenAI</div>
+        <div class="loop-step">2. POST /v1/chat/completions + tools</div>
+        <div class="loop-step">3. Si tool_calls → ejecuta cada tool</div>
+        <div class="loop-step">4. Agrega resultado a messages[]</div>
+        <div class="loop-step">5. Repite hasta respuesta final (max 5)</div>
+      </div>
+      <div style="margin-top:10px;text-align:center">
+        <span class="badge green">gpt-4o · max_tokens 800</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display:flex;justify-content:center;margin:8px 0">
+    <div class="arrow-v">
+      <div style="font-size:0.62rem;color:#475569;margin-bottom:4px">sendMessage()</div>
+      <div class="line"></div><div class="tip"></div>
+    </div>
+  </div>
+
+  <!-- ── CAPA 5: WASSENGER OUT ── -->
+  <div class="row">
+    <div class="box service wide">
+      <div class="label">Servicio · wassenger.service.js</div>
+      <div class="name">Envío de respuesta</div>
+      <div class="detail">
+        POST <code>api.wassenger.com/v1/messages</code><br>
+        Header: <code>Token</code><br>
+        Body: <code>chat · message · device</code>
+      </div>
+      <div style="margin-top:8px">
+        <span class="badge blue">→ WhatsApp Group</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ENV VARS ── -->
+  <p class="section-title">Variables de entorno</p>
+  <div class="box env" style="max-width:700px;margin:0 auto;width:100%">
+    <div class="name" style="color:#fcd34d;margin-bottom:4px">⚙ .env</div>
+    <div class="env-grid">
+      <span class="env-chip">OPENAI_API_KEY</span>
+      <span class="env-chip">OPENAI_MODEL=gpt-4o</span>
+      <span class="env-chip">WASSENGER_TOKEN</span>
+      <span class="env-chip">WASSENGER_DEVICE_ID</span>
+      <span class="env-chip">GITHUB_TOKEN</span>
+      <span class="env-chip">GITHUB_OWNER</span>
+      <span class="env-chip">GITHUB_REPO</span>
+      <span class="env-chip">GITHUB_BRANCH=main</span>
+      <span class="env-chip">AUTHORIZED_GROUP_ID</span>
+      <span class="env-chip">BOT_TRIGGER=@bot</span>
+      <span class="env-chip">PORT=3000</span>
+    </div>
+  </div>
+
+</div><!-- /diagram -->
+
+</body>
+</html>
