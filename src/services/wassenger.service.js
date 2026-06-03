@@ -24,11 +24,16 @@ async function sendMessage({ groupId, text }) {
       ...(config.WASSENGER_DEVICE_ID ? { device: config.WASSENGER_DEVICE_ID } : {}),
     };
 
+    console.log('Wassenger sending:', payload);
     const res = await postToWassenger(url, payload);
-    console.log('Message sent to Wassenger:', res.status, payload);
+    console.log('Wassenger response:', res.status, res.data);
     return res.data;
   } catch (err) {
-    console.warn('Wassenger sendMessage failed (continuing anyway):', err?.message || err?.response?.data || err?.response?.status || 'unknown error');
+    console.warn('Wassenger sendMessage failed:', {
+      status: err?.response?.status,
+      body: err?.response?.data,
+      message: err?.message,
+    });
     return null;
   }
 }
