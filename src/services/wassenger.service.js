@@ -1,31 +1,49 @@
 const axios = require('axios');
 const config = require('../config');
 
+async function postToWassenger(url, payload) {
+  return axios.post(url, payload, {
+    headers: {
+      Token: config.WASSENGER_TOKEN,
+      'Content-Type': 'application/json',
+    },
+  });
+}
+
 async function sendMessage({ groupId, text }) {
   try {
-    if (!config.WASSENGER_TOKEN || !config.WASSENGER_DEVICE_ID) {
-      console.warn('Wassenger not configured (WASSENGER_TOKEN or WASSENGER_DEVICE_ID missing), skipping sendMessage');
+    if (!config.WASSENGER_TOKEN) {
+      console.warn('Wassenger not configured (WASSENGER_TOKEN missing), skipping sendMessage');
       return null;
     }
 
-    // Wassenger API endpoint: send message to a chat
-    const url = `https://api.wassenger.com/v1/device/${config.WASSENGER_DEVICE_ID}/message`;
-    const payload = {
-      to: groupId,
-      message: text,
-    };
+    const url = 'https://api.wassenger.com/v1/messages';
+    const candidates = [
+      { to: groupId, message: text, type: 'text' },
+      { chat: groupId, message: text, type: 'text' },
+      { chatId: groupId, message: text, type: 'text' },
+      { to: groupId, body: text, type: 'text' },
+    ];
 
-    const res = await axios.post(url, payload, {
-      headers: {
-        Authorization: `Bearer ${config.WASSENGER_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    console.log('Message sent to Wassenger:', res.status);
-    return res.data;
+    for (const payload of candidates) {
+      try {
+        const res = await postToWassenger(url, payload);
+        console.log('Message sent to Wassenger:', res.status, payload);
+        return res.data;
+      } catch (err) {
+        const status = err?.response?.status;
+        const data = err?.response?.data;
+        console.warn('Wassenger attempt failed:', status, data || err?.message, payload);
+        if (status !== 404 && status !== 400) {
+          break;
+        }
+      }
+    }
+
+    console.warn('Wassenger sendMessage all payload attempts failed.');
+    return null;
   } catch (err) {
-    console.warn('Wassenger sendMessage failed (continuing anyway):', err?.message || err?.response?.data?.message || err?.response?.status || 'unknown error');
-    // Don't throw — allow webhook to continue even if Wassenger fails
+    console.warn('Wassenger sendMessage failed (continuing anyway):', err?.message || err?.response?.data || err?.response?.status || 'unknown error');
     return null;
   }
 }
