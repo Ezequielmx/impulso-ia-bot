@@ -14,45 +14,68 @@ function extractSender(payload) {
 function isBotMentioned(payload) {
   // Detectar si el bot fue mencionado (arrobado) de cualquier forma
   const textRaw = extractText(payload);
-  
-  // Opción 1: Menciones en campo dedicado (Wassenger puede enviar mentions)
-  if (payload?.mentions && Array.isArray(payload.mentions)) {
-    const hasBotMention = payload.mentions.some(m => 
-      m?.id?.includes('bot') || 
-      m?.name?.toLowerCase().includes('bot') ||
-      m?.number === config.WASSENGER_DEVICE_ID
-    );
+
+  const mentionCandidates = [
+    ...(payload?.mentions || []),
+    ...(payload?.mentioned || []),
+  ];
+
+  if (Array.isArray(mentionCandidates) && mentionCandidates.length > 0) {
+    const hasBotMention = mentionCandidates.some(m => {
+      const id = String(m?.id || m?.jid || m?.user || m?.phone || '');
+      const name = String(m?.name || m?.displayName || m?.pushname || '');
+      return id === config.WASSENGER_DEVICE_ID || id.includes('bot') || name.toLowerCase().includes('bot');
+    });
     if (hasBotMention) return true;
   }
-  
-  // Opción 2: Campo de menciones en formato string
-  if (payload?.mentionedIds && payload.mentionedIds.includes(config.WASSENGER_DEVICE_ID)) {
+
+  if (payload?.mentionedIds && Array.isArray(payload.mentionedIds) && payload.mentionedIds.includes(config.WASSENGER_DEVICE_ID)) {
     return true;
   }
-  
-  // Opción 3: Búsqueda en texto (compatibilidad con @bot manual)
+
+  if (payload?.mentionedJids && Array.isArray(payload.mentionedJids) && payload.mentionedJids.includes(config.WASSENGER_DEVICE_ID)) {
+    return true;
+  }
+
   if (textRaw?.includes(config.BOT_TRIGGER)) {
     return true;
   }
-  
-  // Opción 4: Si el mensaje comienza con @ (arrobada genérica)
+
   if (textRaw?.trim().startsWith('@')) {
     return true;
   }
-  
+
   return false;
+}
+
+function normalizeGroupId(rawId) {
+  if (!rawId || typeof rawId !== 'string') return '';
+  return rawId.replace(/[^0-9]/g, '');
 }
 
 async function handleWassengerWebhook(payload) {
   const groupId = payload?.group?.id || payload?.group_id || payload?.chatId;
+  const normalizedGroupId = normalizeGroupId(groupId);
+  const normalizedAllowed = normalizeGroupId(config.AUTHORIZED_GROUP_ID);
   const textRaw = extractText(payload);
   const sender = extractSender(payload);
 
-  if (!groupId || (config.AUTHORIZED_GROUP_ID && groupId !== config.AUTHORIZED_GROUP_ID)) {
+  if (!groupId || (normalizedAllowed && normalizedGroupId !== normalizedAllowed)) {
+    console.log('webhook debug: group not authorized', { groupId, normalizedGroupId, authorized: config.AUTHORIZED_GROUP_ID, normalizedAllowed });
     return { ok: true, reason: 'group_not_authorized' };
   }
 
   if (!textRaw || !isBotMentioned(payload)) {
+    console.log('webhook debug: no trigger', {
+      groupId,
+      normalizedGroupId,
+      textRaw,
+      payloadKeys: Object.keys(payload || {}),
+      mentions: payload?.mentions || payload?.mentioned || payload?.mentionedIds || payload?.mentionedJids,
+      isBotMentioned: false,
+      expectedTrigger: config.BOT_TRIGGER,
+      deviceId: config.WASSENGER_DEVICE_ID,
+    });
     return { ok: true, reason: 'no_trigger' };
   }
 
