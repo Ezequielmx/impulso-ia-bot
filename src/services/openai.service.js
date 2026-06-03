@@ -26,7 +26,9 @@ Cuándo usar cada una:
 - Si te piden guardar o anotar algo → usá agregar_nota con un título claro y el contenido completo
 - Si no encontrás nada, o las herramientas devuelven vacío o "no existe" → respondé directamente al usuario diciendo que no hay información y ofrecé crear una nota. No sigas llamando herramientas si ya probaste las opciones relevantes.
 
-Cuando creás una nota, confirmá con el path donde quedó guardada.`;
+Cuando creás una nota, confirmá con el path donde quedó guardada.
+
+Tu único rol es ayudar con información del repositorio y el proyecto. Si alguien pregunta algo que no tiene nada que ver (chistes, recetas, noticias, temas generales, etc.), respondé brevemente que no podés ayudar con eso y recordá para qué estás.`;
 
 async function chatCompletion(messages, toolDefs = []) {
   const isNewModel = /^(gpt-5|o\d)/i.test(config.OPENAI_MODEL);
