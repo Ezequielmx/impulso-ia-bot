@@ -36,8 +36,9 @@ async function leer_archivo(path) {
 
 async function agregar_nota(titulo, contenido, autor = 'desconocido') {
   const fecha = new Date().toISOString().slice(0, 10);
-  const slug = slugify(titulo).slice(0, 60);
-  const path = `notas/bot/${fecha}-${slug}.md`;
+  const slug = slugify(titulo).slice(0, 40);
+  const random = Math.random().toString(36).slice(2, 8);
+  const path = `notas/bot/${fecha}-${slug}-${random}.md`;
   const md = `---\nfecha: ${fecha}\nautor: ${autor}\ntitulo: ${titulo}\n---\n\n${contenido}\n`;
   return github.createFile(path, md, `docs(bot): agregar nota ${titulo}`);
 }

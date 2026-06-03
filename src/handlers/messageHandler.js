@@ -11,6 +11,38 @@ function extractSender(payload) {
   return payload?.from || payload?.senderName || payload?.author || payload?.number || 'desconocido';
 }
 
+function isBotMentioned(payload) {
+  // Detectar si el bot fue mencionado (arrobado) de cualquier forma
+  const textRaw = extractText(payload);
+  
+  // Opción 1: Menciones en campo dedicado (Wassenger puede enviar mentions)
+  if (payload?.mentions && Array.isArray(payload.mentions)) {
+    const hasBotMention = payload.mentions.some(m => 
+      m?.id?.includes('bot') || 
+      m?.name?.toLowerCase().includes('bot') ||
+      m?.number === config.WASSENGER_DEVICE_ID
+    );
+    if (hasBotMention) return true;
+  }
+  
+  // Opción 2: Campo de menciones en formato string
+  if (payload?.mentionedIds && payload.mentionedIds.includes(config.WASSENGER_DEVICE_ID)) {
+    return true;
+  }
+  
+  // Opción 3: Búsqueda en texto (compatibilidad con @bot manual)
+  if (textRaw?.includes(config.BOT_TRIGGER)) {
+    return true;
+  }
+  
+  // Opción 4: Si el mensaje comienza con @ (arrobada genérica)
+  if (textRaw?.trim().startsWith('@')) {
+    return true;
+  }
+  
+  return false;
+}
+
 async function handleWassengerWebhook(payload) {
   const groupId = payload?.group?.id || payload?.group_id || payload?.chatId;
   const textRaw = extractText(payload);
@@ -20,11 +52,12 @@ async function handleWassengerWebhook(payload) {
     return { ok: true, reason: 'group_not_authorized' };
   }
 
-  if (!textRaw || !textRaw.includes(config.BOT_TRIGGER)) {
+  if (!textRaw || !isBotMentioned(payload)) {
     return { ok: true, reason: 'no_trigger' };
   }
 
-  const text = textRaw.replace(config.BOT_TRIGGER, '').trim();
+  // Limpiar el texto de menciones (@bot, @nombre, etc)
+  const text = textRaw.replace(/^@[\w\s]*/i, '').trim();
 
   // Shortcut: agregar nota commands
   const lower = text.toLowerCase();
@@ -38,11 +71,18 @@ async function handleWassengerWebhook(payload) {
       content = parts.slice(1).join(':').trim();
     }
 
-    const res = await repoTools.agregar_nota(title, content, sender);
-    const path = res && res.content && res.content.path ? res.content.path : 'notas/bot/??';
-    const reply = `Nota creada en /${path}`;
-    await wassenger.sendMessage({ groupId, text: reply });
-    return { ok: true, action: 'agregar_nota', path };
+    try {
+      const res = await repoTools.agregar_nota(title, content, sender);
+      const path = res && res.content && res.content.path ? res.content.path : 'notas/bot/??';
+      const reply = `Nota creada en /${path}`;
+      await wassenger.sendMessage({ groupId, text: reply });
+      return { ok: true, action: 'agregar_nota', path };
+    } catch (err) {
+      console.warn('agregar_nota error (continuing)', err?.message || err);
+      const reply = `No pude crear la nota. Error: ${err?.message || 'error desconocido'}. Probá más tarde.`;
+      await wassenger.sendMessage({ groupId, text: reply });
+      return { ok: true, action: 'agregar_nota_error', error: err?.message };
+    }
   }
 
   // General query: use OpenAI with tools
