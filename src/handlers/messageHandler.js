@@ -17,28 +17,23 @@ function extractSender(payload) {
   return data?.from || data?.senderName || data?.author || data?.number || 'desconocido';
 }
 
-function extractBotPhone(payload) {
-  // El payload de Wassenger trae el device con el número del bot
-  const phone = payload?.device?.phone
-    || payload?.device?.number
-    || payload?.device?.wid
-    || config.BOT_PHONE
-    || '';
-  return String(phone).replace(/\D/g, '');
+function getBotWaId(payload) {
+  // En mensajes inbound de Wassenger, data.to es siempre el WA ID del bot
+  const data = getPayloadData(payload);
+  return data?.to || '';
 }
 
 function isBotMentioned(payload) {
   const data = getPayloadData(payload);
   const textRaw = extractText(payload);
 
-  // Trigger por texto exacto (@bot o lo que esté en BOT_TRIGGER)
+  // Trigger por texto (@bot u otro BOT_TRIGGER configurado)
   if (textRaw?.includes(config.BOT_TRIGGER)) return true;
 
-  // Mención por número de teléfono del bot en el texto (@265464127213597)
-  const botPhone = extractBotPhone(payload);
-  if (botPhone && textRaw?.includes(`@${botPhone}`)) return true;
+  // El WA ID del bot en este contexto es data.to (ej: "5491154257750@c.us")
+  const botWaId = getBotWaId(payload);
 
-  // Mentions estructuradas del payload — por device ID o por phone
+  // Menciones estructuradas: Wassenger manda data.mentions con id = WA ID del mencionado
   const mentionCandidates = [
     ...(data?.mentions || []),
     ...(data?.mentioned || []),
@@ -46,14 +41,20 @@ function isBotMentioned(payload) {
 
   if (mentionCandidates.length > 0) {
     const hasBotMention = mentionCandidates.some(m => {
-      const id = String(m?.id || m?.jid || m?.user || m?.phone || '').replace(/\D/g, '');
-      return id === config.WASSENGER_DEVICE_ID || (botPhone && id === botPhone);
+      const mId = String(m?.id || m?.jid || m?.phone || '');
+      if (botWaId && mId === botWaId) return true;
+      // Fallback: comparar solo dígitos
+      const mDigits = mId.replace(/\D/g, '');
+      const botDigits = botWaId.replace(/\D/g, '');
+      return botDigits && mDigits === botDigits;
     });
     if (hasBotMention) return true;
   }
 
-  if (data?.mentionedIds?.includes(config.WASSENGER_DEVICE_ID)) return true;
-  if (data?.mentionedJids?.includes(config.WASSENGER_DEVICE_ID)) return true;
+  if (botWaId) {
+    if (data?.mentionedIds?.includes(botWaId)) return true;
+    if (data?.mentionedJids?.includes(botWaId)) return true;
+  }
 
   return false;
 }
@@ -80,11 +81,9 @@ async function handleWassengerWebhook(payload) {
     console.log('webhook debug: no trigger', {
       groupId,
       textRaw,
-      device: payload?.device,
-      botPhone: extractBotPhone(payload),
-      mentions: data?.mentions || data?.mentioned || data?.mentionedIds,
+      botWaId: getBotWaId(payload),
+      mentions: data?.mentions,
       expectedTrigger: config.BOT_TRIGGER,
-      deviceId: config.WASSENGER_DEVICE_ID,
     });
     return { ok: true, reason: 'no_trigger' };
   }
