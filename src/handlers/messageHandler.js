@@ -17,14 +17,28 @@ function extractSender(payload) {
   return data?.from || data?.senderName || data?.author || data?.number || 'desconocido';
 }
 
+function extractBotPhone(payload) {
+  // El payload de Wassenger trae el device con el número del bot
+  const phone = payload?.device?.phone
+    || payload?.device?.number
+    || payload?.device?.wid
+    || config.BOT_PHONE
+    || '';
+  return String(phone).replace(/\D/g, '');
+}
+
 function isBotMentioned(payload) {
   const data = getPayloadData(payload);
   const textRaw = extractText(payload);
 
-  // Chequeo por texto primero: debe contener el trigger exacto
+  // Trigger por texto exacto (@bot o lo que esté en BOT_TRIGGER)
   if (textRaw?.includes(config.BOT_TRIGGER)) return true;
 
-  // Chequeo por mentions estructuradas del payload
+  // Mención por número de teléfono del bot en el texto (@265464127213597)
+  const botPhone = extractBotPhone(payload);
+  if (botPhone && textRaw?.includes(`@${botPhone}`)) return true;
+
+  // Mentions estructuradas del payload — por device ID o por phone
   const mentionCandidates = [
     ...(data?.mentions || []),
     ...(data?.mentioned || []),
@@ -32,8 +46,8 @@ function isBotMentioned(payload) {
 
   if (mentionCandidates.length > 0) {
     const hasBotMention = mentionCandidates.some(m => {
-      const id = String(m?.id || m?.jid || m?.user || m?.phone || '');
-      return id === config.WASSENGER_DEVICE_ID;
+      const id = String(m?.id || m?.jid || m?.user || m?.phone || '').replace(/\D/g, '');
+      return id === config.WASSENGER_DEVICE_ID || (botPhone && id === botPhone);
     });
     if (hasBotMention) return true;
   }
@@ -65,11 +79,10 @@ async function handleWassengerWebhook(payload) {
   if (!textRaw || !isBotMentioned(payload)) {
     console.log('webhook debug: no trigger', {
       groupId,
-      normalizedGroupId,
       textRaw,
-      payloadKeys: Object.keys(payload || {}),
-      mentions: payload?.mentions || payload?.mentioned || payload?.mentionedIds || payload?.mentionedJids,
-      isBotMentioned: false,
+      device: payload?.device,
+      botPhone: extractBotPhone(payload),
+      mentions: data?.mentions || data?.mentioned || data?.mentionedIds,
       expectedTrigger: config.BOT_TRIGGER,
       deviceId: config.WASSENGER_DEVICE_ID,
     });

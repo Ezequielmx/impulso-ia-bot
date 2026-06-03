@@ -14,6 +14,7 @@ module.exports = {
 
   AUTHORIZED_GROUP_ID: process.env.AUTHORIZED_GROUP_ID,
   BOT_TRIGGER: process.env.BOT_TRIGGER || '@bot',
+  BOT_PHONE: process.env.BOT_PHONE || '',
 
   PORT: process.env.PORT || 3000,
 };
