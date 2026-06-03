@@ -4,7 +4,7 @@ const ALLOWED = [
   'notas',
   'prompts',
   'recursos',
-  'web',
+  'sitio_web',
 ];
 
 function allowedPaths() {

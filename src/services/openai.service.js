@@ -33,7 +33,7 @@ async function chatCompletion(messages, toolDefs = []) {
   const body = {
     model: config.OPENAI_MODEL,
     messages,
-    ...(isNewModel ? { max_completion_tokens: 800 } : { max_tokens: 800 }),
+    ...(isNewModel ? { max_completion_tokens: 2000 } : { max_tokens: 2000 }),
     ...(toolDefs.length > 0 ? { tools: toolDefs, tool_choice: 'auto' } : {}),
   };
 
@@ -67,8 +67,8 @@ async function callWithToolLoop({ userInput, tools = {}, sender = 'desconocido' 
     { role: 'user', content: userInput },
   ];
 
-  // Tool loop — max 5 rounds to avoid infinite loops
-  for (let i = 0; i < 5; i++) {
+  // Tool loop — max 8 rounds to avoid infinite loops
+  for (let i = 0; i < 8; i++) {
     let assistantMsg;
     try {
       assistantMsg = await chatCompletion(messages, toolDefs);
