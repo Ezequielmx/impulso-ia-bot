@@ -118,9 +118,33 @@ async function handleWassengerWebhook(payload) {
 
   // General query: use OpenAI with tools
   const tools = {
-    listar_archivos: { description: 'Lista archivos y carpetas dentro de una ruta permitida', fn: async (args) => repoTools.listar_archivos(args.path || '') },
-    buscar_en_repo: { description: 'Busca texto en archivos permitidos', fn: async (args) => repoTools.buscar_en_repo(args.query || '') },
-    leer_archivo: { description: 'Lee el contenido de un archivo permitido', fn: async (args) => repoTools.leer_archivo(args.path || '') },
+    listar_archivos: {
+      description: 'Lista archivos y carpetas dentro de una ruta del repositorio',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string', description: 'Ruta a listar, ej: notas/bot' } },
+        required: [],
+      },
+      fn: async (args) => repoTools.listar_archivos(args.path || ''),
+    },
+    buscar_en_repo: {
+      description: 'Busca texto en los archivos del repositorio',
+      parameters: {
+        type: 'object',
+        properties: { query: { type: 'string', description: 'Texto a buscar' } },
+        required: ['query'],
+      },
+      fn: async (args) => repoTools.buscar_en_repo(args.query || ''),
+    },
+    leer_archivo: {
+      description: 'Lee el contenido completo de un archivo del repositorio',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string', description: 'Ruta exacta del archivo' } },
+        required: ['path'],
+      },
+      fn: async (args) => repoTools.leer_archivo(args.path || ''),
+    },
   };
 
   const answer = await openai.callWithToolLoop({ userInput: text, tools });
