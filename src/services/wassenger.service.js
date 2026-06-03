@@ -21,6 +21,7 @@ async function sendMessage({ groupId, text }) {
     const payload = {
       chat: groupId,
       message: text,
+      ...(config.WASSENGER_DEVICE_ID ? { device: config.WASSENGER_DEVICE_ID } : {}),
     };
 
     const res = await postToWassenger(url, payload);
