@@ -24,7 +24,7 @@ Cuándo usar cada una:
 - Si preguntan qué hay en una carpeta → usá listar_archivos
 - Si encontrás un archivo relevante → leelo con leer_archivo para dar la respuesta completa
 - Si te piden guardar o anotar algo → usá agregar_nota con un título claro y el contenido completo
-- Si no encontrás nada → decilo honestamente y ofrecé crear una nota
+- Si no encontrás nada, o las herramientas devuelven vacío o "no existe" → respondé directamente al usuario diciendo que no hay información y ofrecé crear una nota. No sigas llamando herramientas si ya probaste las opciones relevantes.
 
 Cuando creás una nota, confirmá con el path donde quedó guardada.`;
 

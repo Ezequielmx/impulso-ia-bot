@@ -4,11 +4,17 @@ const { slugify } = require('../utils/text');
 
 async function listar_archivos(path) {
   if (!path) {
-    // Sin path: devolver lista de carpetas permitidas
     return pathGuard.allowedPaths().map(p => ({ name: p, type: 'dir', path: p }));
   }
   if (!pathGuard.isPathAllowed(path)) throw new Error('ruta no permitida');
-  return github.listDir(path);
+  try {
+    return await github.listDir(path);
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return { found: false, message: `La carpeta '${path}' no existe en el repositorio.` };
+    }
+    throw err;
+  }
 }
 
 async function buscar_en_repo(query) {
