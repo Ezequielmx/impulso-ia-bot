@@ -79,45 +79,18 @@ async function handleWassengerWebhook(payload) {
   // Sacar todas las @menciones del texto preservando el resto del mensaje
   const text = textRaw.replace(/@\S+/g, '').replace(/\s+/g, ' ').trim();
 
-  // Shortcut: agregar nota commands
-  const lower = text.toLowerCase();
-  if (lower.startsWith('agreg') || lower.startsWith('agregá') || lower.startsWith('agrega')) {
-    // Expected format: "agregá nota: Título. Contenido..." or "agregá nota: contenido"
-    const parts = text.split(':');
-    let title = 'nota';
-    let content = text;
-    if (parts.length >= 2) {
-      title = parts[0].replace(/agreg\w* nota/i, '').trim() || 'nota';
-      content = parts.slice(1).join(':').trim();
-    }
-
-    try {
-      const res = await repoTools.agregar_nota(title, content, sender);
-      const path = res && res.content && res.content.path ? res.content.path : 'notas/bot/??';
-      const reply = `Nota creada en /${path}`;
-      await wassenger.sendMessage({ groupId, text: reply });
-      return { ok: true, action: 'agregar_nota', path };
-    } catch (err) {
-      console.warn('agregar_nota error (continuing)', err?.message || err);
-      const reply = `No pude crear la nota. Error: ${err?.message || 'error desconocido'}. Probá más tarde.`;
-      await wassenger.sendMessage({ groupId, text: reply });
-      return { ok: true, action: 'agregar_nota_error', error: err?.message };
-    }
-  }
-
-  // General query: use OpenAI with tools
   const tools = {
     listar_archivos: {
       description: 'Lista archivos y carpetas dentro de una ruta del repositorio',
       parameters: {
         type: 'object',
-        properties: { path: { type: 'string', description: 'Ruta a listar, ej: notas/bot' } },
+        properties: { path: { type: 'string', description: 'Ruta a listar, ej: notas/bot. Dejá vacío para ver carpetas raíz.' } },
         required: [],
       },
       fn: async (args) => repoTools.listar_archivos(args.path || ''),
     },
     buscar_en_repo: {
-      description: 'Busca texto en los archivos del repositorio',
+      description: 'Busca texto en todos los archivos del repositorio (recursivo)',
       parameters: {
         type: 'object',
         properties: { query: { type: 'string', description: 'Texto a buscar' } },
@@ -129,14 +102,30 @@ async function handleWassengerWebhook(payload) {
       description: 'Lee el contenido completo de un archivo del repositorio',
       parameters: {
         type: 'object',
-        properties: { path: { type: 'string', description: 'Ruta exacta del archivo' } },
+        properties: { path: { type: 'string', description: 'Ruta exacta del archivo, ej: notas/bot/2025-01-01-titulo.md' } },
         required: ['path'],
       },
       fn: async (args) => repoTools.leer_archivo(args.path || ''),
     },
+    agregar_nota: {
+      description: 'Crea una nota nueva en el repositorio dentro de notas/bot/',
+      parameters: {
+        type: 'object',
+        properties: {
+          titulo: { type: 'string', description: 'Título de la nota' },
+          contenido: { type: 'string', description: 'Contenido completo de la nota' },
+        },
+        required: ['titulo', 'contenido'],
+      },
+      fn: async (args) => {
+        const res = await repoTools.agregar_nota(args.titulo, args.contenido, sender);
+        const path = res?.content?.path || 'notas/bot/??';
+        return { ok: true, path, mensaje: `Nota creada en /${path}` };
+      },
+    },
   };
 
-  const answer = await openai.callWithToolLoop({ userInput: text, tools });
+  const answer = await openai.callWithToolLoop({ userInput: text, tools, sender });
   await wassenger.sendMessage({ groupId, text: answer });
   return { ok: true, action: 'answered' };
 }
