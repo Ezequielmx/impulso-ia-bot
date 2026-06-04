@@ -49,7 +49,7 @@ async function chatCompletion(messages, toolDefs = []) {
   return resp.data.choices[0].message;
 }
 
-async function callWithToolLoop({ userInput, tools = {}, sender = 'desconocido' }) {
+async function callWithToolLoop({ userInput, tools = {}, sender = 'desconocido', history = [] }) {
   if (!config.OPENAI_API_KEY) {
     return 'OpenAI no está configurado. Definí OPENAI_API_KEY en .env para habilitar respuestas.';
   }
@@ -64,9 +64,16 @@ async function callWithToolLoop({ userInput, tools = {}, sender = 'desconocido' 
     },
   }));
 
+  // Historial previo formateado para OpenAI
+  const historyMessages = history.map(h => ({
+    role: h.role,
+    content: h.role === 'user' && h.senderName ? `[${h.senderName}]: ${h.content}` : h.content,
+  }));
+
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: userInput },
+    ...historyMessages,
+    { role: 'user', content: `[${sender}]: ${userInput}` },
   ];
 
   // Tool loop — max 8 rounds to avoid infinite loops

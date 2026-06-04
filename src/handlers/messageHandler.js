@@ -2,6 +2,7 @@ const config = require('../config');
 const repoTools = require('../tools/repoTools');
 const openai = require('../services/openai.service');
 const wassenger = require('../services/wassenger.service');
+const memory = require('../utils/conversationMemory');
 
 function getPayloadData(payload) {
   return payload?.data || payload;
@@ -137,7 +138,12 @@ async function handleWassengerWebhook(payload) {
     },
   };
 
-  const answer = await openai.callWithToolLoop({ userInput: text, tools, sender });
+  const history = memory.getHistory(groupId);
+  memory.addMessage(groupId, 'user', text, sender);
+
+  const answer = await openai.callWithToolLoop({ userInput: text, tools, sender, history });
+
+  memory.addMessage(groupId, 'assistant', answer);
   await wassenger.sendMessage({ groupId, text: answer });
   return { ok: true, action: 'answered' };
 }

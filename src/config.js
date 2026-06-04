@@ -15,6 +15,7 @@ module.exports = {
   AUTHORIZED_GROUP_ID: process.env.AUTHORIZED_GROUP_ID,
   BOT_TRIGGER: process.env.BOT_TRIGGER || '@bot',
   BOT_PHONE: process.env.BOT_PHONE || '',
+  CONVERSATION_HISTORY_SIZE: parseInt(process.env.CONVERSATION_HISTORY_SIZE || '40', 10),
 
   PORT: process.env.PORT || 3000,
 };
